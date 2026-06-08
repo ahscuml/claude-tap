@@ -450,7 +450,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         prog="claude-tap",
         description=(
             "Trace Claude Code, Codex CLI, Gemini CLI, Kimi CLI, OpenCode, OpenClaw, Pi, Hermes Agent, "
-            "Cursor CLI, Qoder CLI, Antigravity CLI, or CodeBuddy CLI API requests via a local proxy. "
+            "Cursor CLI, Qoder CLI, Antigravity CLI, CodeBuddy CLI, or CodeWiz CC API requests via a local proxy. "
             "All flags not listed below are forwarded to the selected client."
         ),
         epilog=(
@@ -525,6 +525,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "  claude-tap --tap-client codebuddy --tap-target https://www.codebuddy.ai/v2\n"
             '  CODEBUDDY_BASE_URL=https://your-host/v2 claude-tap --tap-client codebuddy -- -p "Reply OK"\n'
             "\n"
+            "codewiz-cc (reverse proxy mode):\n"
+            '  claude-tap --tap-client codewiz-cc -- -p "Reply OK"\n'
+            "\n"
             "proxy-only mode (connect from another terminal):\n"
             "  claude-tap --tap-no-launch --tap-port 8080\n"
             "  # then: ANTHROPIC_BASE_URL=http://127.0.0.1:8080 claude\n"
@@ -582,7 +585,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="proxy_mode",
         help=(
             "'reverse' sets provider base URL, 'forward' sets HTTPS_PROXY with CONNECT/TLS termination. "
-            "Default depends on the client: 'reverse' for claude/codex/kimi/codebuddy, "
+            "Default depends on the client: 'reverse' for claude/codewiz-cc/codex/kimi/codebuddy, "
             "'forward' for agy/gemini/opencode/pi/hermes/cursor/qoder."
         ),
     )

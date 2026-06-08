@@ -147,6 +147,16 @@ CLIENT_CONFIGS: dict[str, ClientConfig] = {
         nesting_env_keys=("CLAUDECODE", "CLAUDE_CODE_SSE_PORT"),
         inject_settings_env=True,
     ),
+    "codewiz-cc": ClientConfig(
+        cmd="codewiz-cc",
+        label="CodeWiz CC",
+        install_url="https://www.npmjs.com/package/@xhs/codewiz-cc",
+        base_url_env="ANTHROPIC_BASE_URL",
+        base_url_suffix="",
+        default_target="https://codewizllmproxy.devops.xiaohongshu.com/llmratelimit/v3/claude",
+        nesting_env_keys=("CLAUDECODE", "CLAUDE_CODE_SSE_PORT"),
+        inject_settings_env=True,
+    ),
     "codex": ClientConfig(
         cmd="codex",
         label="Codex CLI",
@@ -764,6 +774,81 @@ def _detect_claude_target() -> str:
     return CLIENT_CONFIGS["claude"].default_target
 
 
+def _detect_codewiz_cc_target() -> str:
+    """Auto-detect the upstream target CodeWiz CC would normally use."""
+    env_target = os.environ.get(CLIENT_CONFIGS["codewiz-cc"].base_url_env, "").strip()
+    if env_target:
+        return env_target
+    model_options = _read_codewiz_cc_model_options()
+    cached_target = _codewiz_cc_cached_model_target(model_options)
+    if cached_target:
+        return cached_target
+    first_target = _codewiz_cc_first_model_target(model_options)
+    if first_target:
+        return first_target
+    return CLIENT_CONFIGS["codewiz-cc"].default_target
+
+
+def _codewiz_cc_root() -> Path:
+    return Path(os.environ.get("CODEWIZ_CC_ROOT") or Path.home() / ".cc-mirror" / "codewiz-cc")
+
+
+def _read_codewiz_cc_model_options() -> list[dict]:
+    options_file = os.environ.get("CODEWIZ_MODEL_OPTIONS_FILE", "").strip()
+    path = Path(options_file).expanduser() if options_file else _codewiz_cc_root() / "codewiz-model-options.json"
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError):
+        return []
+    return [item for item in data if isinstance(item, dict)] if isinstance(data, list) else []
+
+
+def _codewiz_cc_profile_api_url(option: dict) -> str | None:
+    profile = option.get("_profile")
+    if not isinstance(profile, dict):
+        return None
+    api_url = profile.get("apiUrl")
+    if isinstance(api_url, str) and api_url.strip():
+        return api_url.strip()
+    return None
+
+
+def _codewiz_cc_cached_model_target(model_options: list[dict]) -> str | None:
+    try:
+        cached = json.loads((_codewiz_cc_root() / "config" / "codewiz-model.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError):
+        return None
+    if not isinstance(cached, dict):
+        return None
+    cached_models = {
+        value.strip()
+        for value in (cached.get("opus"), cached.get("sonnet"), cached.get("haiku"))
+        if isinstance(value, str) and value.strip()
+    }
+    if not cached_models:
+        return None
+    for option in model_options:
+        profile = option.get("_profile")
+        if not isinstance(profile, dict):
+            continue
+        option_models = {
+            value.strip()
+            for value in (profile.get("opus"), profile.get("sonnet"), profile.get("haiku"))
+            if isinstance(value, str) and value.strip()
+        }
+        if cached_models & option_models:
+            return _codewiz_cc_profile_api_url(option)
+    return None
+
+
+def _codewiz_cc_first_model_target(model_options: list[dict]) -> str | None:
+    for option in model_options:
+        target = _codewiz_cc_profile_api_url(option)
+        if target:
+            return target
+    return None
+
+
 def _reverse_proxy_trace_options(client: str, target: str) -> dict[str, object]:
     cfg = CLIENT_CONFIGS[client]
     return {
@@ -1044,6 +1129,7 @@ def _detect_openclaw_target(cmd_args: Sequence[str] = ()) -> str:
 
 TARGET_DETECTORS = {
     "claude": _detect_claude_target,
+    "codewiz-cc": _detect_codewiz_cc_target,
     "codex": _detect_codex_target,
     "codebuddy": _detect_codebuddy_target,
     "openclaw": _detect_openclaw_target,

@@ -12,6 +12,7 @@ from claude_tap.cli import CLIENT_CONFIGS, ClientConfig, run_client
 SUPPORTED_CLIENTS = {
     "agy",
     "claude",
+    "codewiz-cc",
     "codex",
     "gemini",
     "kimi",
@@ -29,6 +30,7 @@ SINGLE_REVERSE_ENV_CLIENTS = SUPPORTED_CLIENTS - {"claude", "gemini", "openclaw"
 SUPPORTED_DEFAULT_PROXY_MODES = {
     "agy": "forward",
     "claude": "reverse",
+    "codewiz-cc": "reverse",
     "codex": "reverse",
     "gemini": "forward",
     "kimi": "reverse",
